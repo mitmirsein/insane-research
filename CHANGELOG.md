@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.10.2] - 2026-10-14
+- **gptaku-core 라우팅 조정.** 실제 대화에서 잘못 지목된 사례에 맞춰 `routing.json`의 키워드·제외어를 고쳤다. gptaku-core 0.1.1과 함께 적용된다.
+
+## [2.10.1] - 2026-10-13
+- **gptaku-core 라우팅 적용.** `gptaku-core`를 의존성으로 선언하고 `routing.json`을 추가해, 이 플러그인 스킬에 맞는 요청이 오면 직접 처리하거나 기본 도구를 쓰기 전에 이 스킬을 먼저 쓰게 했다. 기존 사용자는 업데이트 후 `/reload-plugins`를 실행하거나 플러그인을 다시 설치해야 gptaku-core가 함께 설치된다. 끄기: `GPTAKU_ROUTER=off`.
+- 스킬 설명에서 "단순 검색은 WebSearch로" 같은 양보 문구를 빼고, WebSearch·WebFetch보다 먼저 쓰는 스킬로 다시 썼다.
+
+## [2.10.0] - 2026-10-08
+
+### Added — 원문 인용 게이트 (고위험 주장은 원문 구절 대조 필수)
+
+- **배경**: 과거 리서치에서 verified로 통과한 고위험 주장 8건 중 4건은 수치·경로·속성이 인용 출처에 없었다(IP-Adapter CLIP-I 0.828, Stability `v2alpha`→`v2beta` 오기 등). 게이트는 출처 개수·등급·유형만 보고 주장이 출처에 실제로 있는지는 보지 않았다.
+- 주장 레코드에 `evidence[]`({source_id, quote, locator?}) 추가. 팬아웃 에이전트는 `source_url`로 쓰고 `merge_agent_returns.py`가 `src_xxx`로 바꾼다.
+- **`scripts/snapshot_sources.py` 신규** — high-risk 주장이 인용한 출처만 insane-search 엔진으로 받아 `sources/snapshots/`에 저장, sources.jsonl에 `snapshot`(path·sha256·status) 기록. WebFetch는 모델 요약이라 쓰지 않는다.
+- **`validate_ledger.py` 7a~7e**: high-risk인데 evidence 없음·구절이 원문에 없음·스냅샷 없음·sha256 불일치·길이(20~300자) 위반이면 unresolved. evidence의 source_id가 주장의 source_ids 밖이면 하드 에러. 대조는 NFKC·따옴표·마크다운 기호·공백·대소문자만 정규화한 부분 문자열 일치(퍼지 금지).
+- **7f — numeric 주장은 값이 든 구절 필수**: 대조 통과 구절 중 하나에 주장 문장의 두 자리 이상 숫자가 있어야 한다. 실제 리서치 E2E에서 숫자 든 구절을 변조해도 값 없는 일반 구절이 통과해 verified로 남던 빈틈을 막는다. 날짜·버전은 소제목에만 있는 정상 사례가 있어 numeric 유형에만 적용.
+- `state.json`의 `ledger_schema: 2` 세션에만 적용(기존 세션은 이전 규칙). `orchestrator.py`의 새 세션은 2로 시작.
+- 검증: `tests/test_evidence_gate.py` 16건(7f 4건 포함, 지난 표본 8건 재현 4 verified/4 unresolved, 날조·차단·변조·구스키마 면제), `tests/test_snapshot_sources.py` 4건, 실제 리서치 에이전트 2개 E2E(실엔진 스냅샷 10/10, high-risk 7건 구절 대조 통과, 구절 변조 시 unresolved), 헤드리스 `/insane-research` 전 과정 E2E(EU AI Act GPAI — 스냅샷 8/8, 게이트 exit 0, high 6건 verified, verify_report·eval_report PASS).
+
 ## [2.9.0] - 2026-08-19
 
 ### Fixed — 데이터 흐름 락 실효화 (게이트 실패가 실제로 합성을 막게)
